@@ -1,0 +1,58 @@
+Question 1: What are the main components Raft needs?
+Think about what we learned:
+
+Nodes need to maintain state (Follower/Candidate/Leader)
+Nodes need to store logs
+Nodes need to run an event loop (handle timeouts, messages)
+Nodes need to apply committed entries to a state machine
+Nodes need to persist data
+
+Answer:
+Node will have following properities:
+class Node:
+    state
+    logs[] // read/write to sqlite
+    lock = threading.Lock()
+    state_machine = {} // applied commands
+    commit_index = 0
+    last_applied = 0
+    current_term
+    voted_for
+    election_timeout
+    heartbeat_timeout
+
+Methods:
+    handle_append_entries_rpc() — receive log entries from leader
+    handle_request_vote_rpc() — respond to election requests
+    apply_committed_entries() — apply log entries to state machine
+
+A separate class that Node calls would be better. It can execute command method liek apply and save changes to disk.
+
+
+
+
+
+
+
+----------------------------------------------------------------
+
+What are the 5-7 main classes/modules you'd create?
+(Don't overthink—just list what comes to mind)
+
+Question 2: What's the interface between Raft and your application?
+If someone wants to use your Raft implementation in their backend, what would they call? For example:
+python# Your code would look like:
+raft = RaftNode(node_id=1, peers=[...])
+raft.apply_command("SET", "key", "value")  # ?
+result = raft.get("key")  # ?
+How should the API look?
+
+Question 3: What about persistence?
+You need to persist:
+
+Current term
+Voted for
+Log entries
+Snapshots (for recovery)
+
+Where do you store this? Files? SQLite? Custom format?
