@@ -24,7 +24,7 @@ class PersistenceLayer:
         self.cursor.execute("""
             -- Log entries
             CREATE TABLE IF NOT EXISTS log_entries (
-                index INTEGER PRIMARY KEY,
+                log_index INTEGER PRIMARY KEY,
                 term INTEGER NOT NULL,
                 command TEXT NOT NULL,  -- JSON
                 timestamp REAL NOT NULL
@@ -39,7 +39,6 @@ class PersistenceLayer:
                 state TEXT NOT NULL  -- JSON of entire state machine
             );
             """)
-
 
 
     def save_term(self, term: int):
@@ -72,22 +71,22 @@ class PersistenceLayer:
 
     def append_log_entry(self, entry: LogEntry) -> None:
         self.cursor.execute("""
-            INSERT INTO log_entries (index, term, command, timestamp)
+            INSERT INTO log_entries (log_index, term, command, timestamp)
             VALUES (?, ?, ?, ?)
             """, (entry.index, entry.term, json.dumps(entry.command), entry.timestamp))
         self.conn.commit()
 
     def get_log_entries(self, start_index: int, end_index: int) -> list[LogEntry]:
         self.cursor.execute("""
-            SELECT index, term, command, timestamp FROM log_entries
-            WHERE index BETWEEN ? AND ?
+            SELECT log_index, term, command, timestamp FROM log_entries
+            WHERE log_index BETWEEN ? AND ?
             """, (start_index, end_index))
         results = self.cursor.fetchall()
         return [LogEntry(index=row[0], term=row[1], command=json.loads(row[2]), timestamp=row[3]) for row in results] if results else []
 
     def get_last_log_index(self) -> int:
         self.cursor.execute("""
-            SELECT MAX(index) FROM log_entries
+            SELECT MAX(log_index) FROM log_entries
             """)
         result = self.cursor.fetchone()
         return result[0] if result[0] is not None else 0
@@ -98,3 +97,21 @@ class PersistenceLayer:
             """)
         result = self.cursor.fetchone()
         return result[0] if result[0] is not None else 0
+
+    def get_term_at_index(self, index: int) -> int:
+        self.cursor.execute("""
+            SELECT term FROM log_entries
+            WHERE log_index = ?
+            """, (index,))
+        result = self.cursor.fetchone()
+        return result[0] if result[0] is not None else 0
+    
+    def get_log_entry(self, index: int) -> LogEntry | None:
+        self.cursor.execute("""
+            SELECT * FROM log_entries
+            WHERE log_index = ?
+            """, (index,))
+        
+        row = self.cursor.fetchone()
+        
+        return LogEntry(index=row[0], term=row[1], command=json.loads(row[2]), timestamp=row[3]) if row[0] is not None else None
