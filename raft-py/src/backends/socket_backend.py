@@ -57,6 +57,10 @@ class SocketBackend:
     async def stop(self) -> None:
         if self._server is not None:
             self._server.close()
+            # Server.wait_closed() blocks until every accepted connection is
+            # also dropped -- peers cache connections indefinitely, so that
+            # never happens on its own. Force them closed first.
+            self._server.close_clients()
             await self._server.wait_closed()
             self._server = None
 
