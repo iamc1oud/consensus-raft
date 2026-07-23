@@ -1,9 +1,23 @@
 import argparse
 import asyncio
+import importlib
 import signal
 
 from src.node import RaftNode
-from src.state_machine import KeyValueStateMachine
+from src.state_machine import StateMachine
+
+
+def load_state_machine(spec: str) -> StateMachine:
+    """Instantiate a StateMachine from a 'module.path:ClassName' spec."""
+    module_name, sep, class_name = spec.partition(":")
+    if not sep:
+        raise ValueError(f"--state-machine must be 'module.path:ClassName', got {spec!r}")
+
+    cls = getattr(importlib.import_module(module_name), class_name)
+    if not (isinstance(cls, type) and issubclass(cls, StateMachine)):
+        raise TypeError(f"{spec} is not a StateMachine subclass")
+
+    return cls()
 
 
 def parse_args() -> argparse.Namespace:
@@ -17,6 +31,11 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated peer addresses, e.g. 127.0.0.1:9002,127.0.0.1:9003",
     )
     parser.add_argument("--db-path", default="./raft.db", help="Path to this node's SQLite persistence file")
+    parser.add_argument(
+        "--state-machine", default="src.state_machine:KeyValueStateMachine",
+        help="StateMachine subclass to run, as 'module.path:ClassName' "
+             "(e.g. src.state_machine:CounterStateMachine, or your own module)",
+    )
     parser.add_argument("--election-timeout-min-ms", type=int, default=150)
     parser.add_argument("--election-timeout-max-ms", type=int, default=300)
     parser.add_argument("--heartbeat-timeout-ms", type=int, default=50)
@@ -30,7 +49,7 @@ async def run() -> None:
     node = RaftNode(
         node_id=args.node_id,
         peers=peers,
-        state_machine=KeyValueStateMachine(),
+        state_machine=load_state_machine(args.state_machine),
         db_path=args.db_path,
         election_timeout_min_ms=args.election_timeout_min_ms,
         election_timeout_max_ms=args.election_timeout_max_ms,
