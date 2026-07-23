@@ -113,5 +113,8 @@ class PersistenceLayer:
             """, (index,))
         
         row = self.cursor.fetchone()
-        
-        return LogEntry(index=row[0], term=row[1], command=json.loads(row[2]), timestamp=row[3]) if row[0] is not None else None
+
+        return LogEntry(index=row[0], term=row[1], command=json.loads(row[2]), timestamp=row[3]) if row is not None else None
+
+    def close(self) -> None:
+        self.conn.close()

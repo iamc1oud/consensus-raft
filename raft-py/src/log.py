@@ -36,8 +36,8 @@ class RaftLog:
         """Delete entries from index onward"""
         self.persistence.cursor.execute("""
         DELETE from log_entries
-        WHERE log_index >= index
-        """)
+        WHERE log_index >= ?
+        """, (index,))
         # Remove from cache also
         self.cache = {k:v for k,v in self.cache.items() if k < index}
         self.persistence.conn.commit()
