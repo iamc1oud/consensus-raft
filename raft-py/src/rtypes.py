@@ -57,3 +57,4 @@ class AppendEntriesResponse:
     term: int
     success: bool
     follower_id: str
+    last_log_index: int
